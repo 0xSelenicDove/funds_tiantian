@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>天天基金估值助手 - Android App</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <!-- ECharts CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <!-- FontAwesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+  <!-- Background Desktop Wallpaper for simulated environment -->
+  <div class="desktop-bg"></div>
+
+  <!-- Simulated Android Phone Frame -->
+  <div class="phone-frame">
+    <!-- Notch / Camera punch-hole -->
+    <div class="notch"></div>
+    
+    <!-- Speaker ear-piece -->
+    <div class="speaker"></div>
+
+    <!-- Phone Screen Container -->
+    <div class="screen">
+      
+      <!-- Android Status Bar -->
+      <div class="status-bar">
+        <div class="time" id="status-bar-time">12:00</div>
+        <div class="status-icons">
+          <i class="fas fa-signal"></i>
+          <i class="fas fa-wifi"></i>
+          <i class="fas fa-battery-three-quarters"></i>
+        </div>
+      </div>
+
+      <!-- App Content Wrapper -->
+      <div class="app-container">
+
+        <!-- Main Watchlist & Market Indices Page (Startup view) -->
+        <div class="page main-page active" id="main-page">
+          <div class="main-header">
+            <h2 id="main-header-title">自选估值</h2>
+            <button class="search-trigger-btn" id="search-trigger-btn"><i class="fas fa-plus"></i> 自选</button>
+          </div>
+
+          <div class="main-tab-panels">
+            <!-- Watchlist Panel -->
+            <div class="main-tab-panel active" id="tab-watchlist">
+              <div class="watchlist-list" id="watchlist-items-container">
+                <div class="watchlist-empty">
+                  <i class="fa-solid fa-star-half-stroke"></i>
+                  <p>暂无自选基金</p>
+                  <button class="watchlist-add-btn" id="watchlist-add-btn">立即添加</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Market Indices Panel -->
+            <div class="main-tab-panel" id="tab-market">
+              <div class="market-section-title">国内市场</div>
+              <div class="market-grid" id="market-cn-indices">
+                <!-- Chinese indices populated in JS -->
+              </div>
+              <div class="market-section-title">美股市场</div>
+              <div class="market-grid" id="market-us-indices">
+                <!-- US indices populated in JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Navigation Bar (Main view) -->
+          <div class="main-bottom-nav">
+            <button class="main-nav-item active" data-main-tab="tab-watchlist">
+              <i class="fa-solid fa-star"></i>
+              <span>自选</span>
+            </button>
+            <button class="main-nav-item" data-main-tab="tab-market">
+              <i class="fa-solid fa-chart-line"></i>
+              <span>行情</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Search / Input Page (Overlay sheet) -->
+        <div class="page search-page" id="search-page">
+          <div class="app-header search-header-row">
+            <button class="back-btn" id="search-back-btn"><i class="fas fa-chevron-left"></i></button>
+            <h1 class="logo-title"><i class="fa-solid fa-chart-line-up"></i> 基金搜索</h1>
+          </div>
+          
+          <div class="search-box-container">
+            <div class="search-input-wrapper">
+              <i class="fas fa-search search-icon"></i>
+              <input type="text" id="fund-code-input" placeholder="输入6位基金代码 (如 000001)" maxlength="6" readonly>
+              <button class="clear-btn" id="input-clear-btn"><i class="fas fa-times-circle"></i></button>
+            </div>
+            
+            <!-- Index quick ticker on search page -->
+            <div class="mini-indices-grid" id="search-indices-grid">
+              <div class="mini-index-card" data-code="sh000001">
+                <span class="index-name">上证</span>
+                <span class="index-val">--</span>
+                <span class="index-rate">--</span>
+              </div>
+              <div class="mini-index-card" data-code="sz399001">
+                <span class="index-name">深成</span>
+                <span class="index-val">--</span>
+                <span class="index-rate">--</span>
+              </div>
+              <div class="mini-index-card" data-code="sz399006">
+                <span class="index-name">创业</span>
+                <span class="index-val">--</span>
+                <span class="index-rate">--</span>
+              </div>
+            </div>
+
+            <!-- Custom Financial Keypad -->
+            <div class="financial-keypad">
+              <button class="key-btn">1</button>
+              <button class="key-btn">2</button>
+              <button class="key-btn">3</button>
+              <button class="key-btn">4</button>
+              <button class="key-btn">5</button>
+              <button class="key-btn">6</button>
+              <button class="key-btn">7</button>
+              <button class="key-btn">8</button>
+              <button class="key-btn">9</button>
+              <button class="key-btn action-btn" id="key-delete"><i class="fas fa-backspace"></i></button>
+              <button class="key-btn">0</button>
+              <button class="key-btn action-btn highlight-btn" id="key-search">查询</button>
+            </div>
+          </div>
+
+          <div class="search-sections">
+            <div class="history-section">
+              <h3 class="section-title"><i class="fas fa-history"></i> 历史查询</h3>
+              <div class="chips-container" id="history-chips">
+                <!-- JavaScript inserts history chips here -->
+                <span class="no-history-text">暂无查询历史</span>
+              </div>
+            </div>
+            
+            <div class="hot-section">
+              <h3 class="section-title"><i class="fas fa-fire"></i> 热门推荐</h3>
+              <div class="chips-container">
+                <span class="chip hot-chip" data-code="000001">华夏成长 (000001)</span>
+                <span class="chip hot-chip" data-code="110011">易方达精选 (110011)</span>
+                <span class="chip hot-chip" data-code="161725">招商白酒LOF (161725)</span>
+                <span class="chip hot-chip" data-code="003095">中欧医疗 (003095)</span>
+                <span class="chip hot-chip" data-code="160630">鹏华酒 (160630)</span>
+                <span class="chip hot-chip" data-code="001594">天弘创业板 (001594)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading Page -->
+        <div class="page loading-page" id="loading-page">
+          <div class="loading-content">
+            <div class="spinner"></div>
+            <h2 id="loading-title">正在获取基金基本资料...</h2>
+            <p id="loading-subtitle">我们将抓取季报持仓并从新浪API读取最新的股票价格进行估算</p>
+          </div>
+        </div>
+
+        <!-- Main Fund Dashboard Page -->
+        <div class="page dashboard-page" id="dashboard-page">
+          <!-- Dashboard Header -->
+          <div class="dashboard-header">
+            <button class="back-btn" id="dashboard-back-btn"><i class="fas fa-chevron-left"></i></button>
+            <div class="fund-titles">
+              <h2 class="fund-display-name" id="fund-display-name">易方达蓝筹精选混合</h2>
+              <div class="fund-display-subtitle">
+                <span class="fund-display-code" id="fund-display-code">110011</span>
+                <span class="fund-display-type" id="fund-display-type">混合型-偏股</span>
+              </div>
+            </div>
+            <button class="favorite-btn" id="dashboard-favorite-btn"><i class="fa-regular fa-star"></i></button>
+            <button class="refresh-btn" id="dashboard-refresh-btn"><i class="fas fa-sync-alt"></i></button>
+          </div>
+
+          <!-- Indices Ticker bar -->
+          <div class="indices-ticker-bar" id="indices-ticker-bar">
+            <!-- Dynamic ticker items -->
+          </div>
+
+          <!-- Main Scrollable Content -->
+          <div class="dashboard-content-scroll">
+            
+            <!-- Valuation Hero Card -->
+            <div class="valuation-hero-card" id="valuation-card">
+              <div class="valuation-meta">
+                <span class="val-label">
+                  估值模型:
+                  <select id="val-model-select" class="val-model-select">
+                    <option value="top10">仅重仓</option>
+                    <option value="scale" selected>仓位放缩</option>
+                    <option value="index">重仓+指数</option>
+                  </select>
+                </span>
+                <span class="val-date" id="valuation-date">2026-05-30 15:00:00</span>
+              </div>
+              <div class="valuation-pct-row">
+                <div class="valuation-percentage" id="valuation-percentage">0.00%</div>
+                <div class="menu-dropdown-container">
+                  <button class="menu-more-btn" id="valuation-more-btn"><i class="fas fa-ellipsis-v"></i></button>
+                  <div class="menu-dropdown-list" id="valuation-menu-dropdown">
+                    <button class="menu-dropdown-item" id="btn-show-process"><i class="fas fa-calculator"></i> 计算过程</button>
+                    <button class="menu-dropdown-item" id="btn-compare-official"><i class="fas fa-balance-scale"></i> 估值比较</button>
+                  </div>
+                </div>
+              </div>
+              <div class="valuation-amount" id="valuation-status">股市休市，基于昨日收盘价计算</div>
+              <div class="valuation-details-grid">
+                <div class="detail-item">
+                  <span class="di-lbl">前十大占比</span>
+                  <span class="di-val" id="top10-weight-sum">--</span>
+                </div>
+                <div class="detail-item">
+                  <span class="di-lbl">股票仓位</span>
+                  <span class="di-val" id="stock-position-val">--</span>
+                </div>
+                <div class="detail-item">
+                  <span class="di-lbl">重仓均涨跌</span>
+                  <span class="di-val" id="top10-avg-change">--</span>
+                </div>
+                <div class="detail-item">
+                  <span class="di-lbl">最新规模</span>
+                  <span class="di-val" id="fund-total-scale">--</span>
+                </div>
+              </div>
+              
+              <div class="valuation-warning">
+                <i class="fas fa-info-circle"></i> 估值仅依据最近季报重仓股当前交易价计算，不构成投资建议。
+              </div>
+            </div>
+
+            <!-- Tab content containers -->
+            <div class="tab-panels">
+              
+              <!-- Tab 1: Overview Panel -->
+              <div class="tab-panel active" id="panel-overview">
+                <!-- Info Grid -->
+                <div class="info-card">
+                  <h3 class="card-title">基本信息</h3>
+                  <div class="attributes-grid">
+                    <div class="attr-row">
+                      <span class="attr-name">基金简称</span>
+                      <span class="attr-val" id="attr-short-name">--</span>
+                    </div>
+                    <div class="attr-row">
+                      <span class="attr-name">基金全称</span>
+                      <span class="attr-val" id="attr-full-name">--</span>
+                    </div>
+                    <div class="attr-row">
+                      <span class="attr-name">发行日期</span>
+                      <span class="attr-val" id="attr-launch-date">--</span>
+                    </div>
+                    <div class="attr-row">
+                      <span class="attr-name">成立日期/规模</span>
+                      <span class="attr-val" id="attr-establish-date">--</span>
+                    </div>
+                    <div class="attr-row">
+                      <span class="attr-name">托管人</span>
+                      <span class="attr-val" id="attr-custodian">--</span>
+                    </div>
+                    <div class="attr-row">
+                      <span class="attr-name">业绩基准</span>
+                      <span class="attr-val" id="attr-benchmark">--</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Fees Card -->
+                <div class="info-card">
+                  <h3 class="card-title">费率结构</h3>
+                  <div class="fees-grid">
+                    <div class="fee-card-item">
+                      <span class="fee-name">管理费率 (每年)</span>
+                      <span class="fee-value" id="fee-management">--</span>
+                    </div>
+                    <div class="fee-card-item">
+                      <span class="fee-name">托管费率 (每年)</span>
+                      <span class="fee-value" id="fee-custody">--</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Performance Card -->
+                <div class="info-card">
+                  <h3 class="card-title">历史阶段收益率</h3>
+                  <div class="performance-grid">
+                    <div class="perf-item">
+                      <span class="perf-time">近1月</span>
+                      <span class="perf-val" id="perf-1m">--</span>
+                    </div>
+                    <div class="perf-item">
+                      <span class="perf-time">近3月</span>
+                      <span class="perf-val" id="perf-3m">--</span>
+                    </div>
+                    <div class="perf-item">
+                      <span class="perf-time">近6月</span>
+                      <span class="perf-val" id="perf-6m">--</span>
+                    </div>
+                    <div class="perf-item">
+                      <span class="perf-time">近1年</span>
+                      <span class="perf-val" id="perf-1y">--</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Fund Size Trend Chart -->
+                <div class="info-card">
+                  <h3 class="card-title">基金管理规模变动</h3>
+                  <div class="chart-container" id="scale-chart"></div>
+                </div>
+
+                <!-- Asset Allocation Card -->
+                <div class="info-card">
+                  <h3 class="card-title">基金资产配置占比</h3>
+                  <div class="allocation-bars" id="allocation-bars">
+                    <!-- Progress bars render here -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tab 2: Holdings Panel -->
+              <div class="tab-panel" id="panel-holdings">
+                <div class="holdings-summary-bar">
+                  <span id="holdings-date-label">最新披露持仓 (截至 --)</span>
+                </div>
+                
+                <div class="holdings-chart-card">
+                  <h3 class="card-title">重仓股持仓配比</h3>
+                  <div class="chart-container" id="holdings-pie-chart"></div>
+                </div>
+
+                <!-- Holdings List -->
+                <div class="holdings-list-container">
+                  <h3 class="card-title">前十大重仓股票列表</h3>
+                  <div class="holdings-list" id="holdings-list-items">
+                    <!-- Dynamic holding items -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tab 3: Manager Panel -->
+              <div class="tab-panel" id="panel-managers">
+                <!-- Managers List -->
+                <div class="managers-container" id="managers-list-container">
+                  <!-- Dynamic managers cards -->
+                </div>
+              </div>
+
+              <!-- Tab 4: Company Panel -->
+              <div class="tab-panel" id="panel-company">
+                <!-- Company General Info -->
+                <div class="info-card company-profile-card">
+                  <div class="company-header">
+                    <i class="fa-solid fa-building-columns company-logo-icon"></i>
+                    <h2 class="company-name-title" id="company-name">--</h2>
+                    <span class="company-tag" id="company-nature">--</span>
+                  </div>
+                  
+                  <div class="company-stats-grid">
+                    <div class="cstat-item">
+                      <span class="cstat-lbl">管理规模</span>
+                      <span class="cstat-val" id="company-scale">--</span>
+                    </div>
+                    <div class="cstat-item">
+                      <span class="cstat-lbl">基金数量</span>
+                      <span class="cstat-val" id="company-fund-count">--</span>
+                    </div>
+                    <div class="cstat-item">
+                      <span class="cstat-lbl">经理人数</span>
+                      <span class="cstat-val" id="company-manager-count">--</span>
+                    </div>
+                  </div>
+                  
+                  <div class="attributes-grid style-secondary">
+                    <div class="attr-row">
+                      <span class="attr-name">总经理</span>
+                      <span class="attr-val" id="company-ceo">--</span>
+                    </div>
+                    <div class="attr-row">
+                      <span class="attr-name">成立日期</span>
+                      <span class="attr-val" id="company-establish-date">--</span>
+                    </div>
+                    <div class="attr-row">
+                      <span class="attr-name">办公地址</span>
+                      <span class="attr-val" id="company-address">--</span>
+                    </div>
+                    <div class="attr-row">
+                      <span class="attr-name">网站地址</span>
+                      <span class="attr-val" id="company-website">--</span>
+                    </div>
+                    <div class="attr-row">
+                      <span class="attr-name">客服热线</span>
+                      <span class="attr-val" id="company-hotline">--</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Bottom Navigation Bar (Android style) -->
+          <div class="bottom-nav">
+            <button class="nav-item active" data-tab="panel-overview">
+              <i class="fas fa-circle-info"></i>
+              <span>概况</span>
+            </button>
+            <button class="nav-item" data-tab="panel-holdings">
+              <i class="fas fa-chart-pie"></i>
+              <span>持仓</span>
+            </button>
+            <button class="nav-item" data-tab="panel-managers">
+              <i class="fas fa-user-tie"></i>
+              <span>经理</span>
+            </button>
+            <button class="nav-item" data-tab="panel-company">
+              <i class="fas fa-building"></i>
+              <span>公司</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Android Screen Bottom Navigation Pill -->
+      <div class="android-nav-bar">
+        <div class="nav-pill" id="android-home-pill"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal 1: Calculation Process -->
+  <div class="modal-overlay" id="modal-process-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3><i class="fas fa-calculator"></i> 估值计算过程</h3>
+        <button class="modal-close-btn" id="btn-close-process-modal"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="process-formula-desc" id="process-formula-desc">
+          <!-- Formula description -->
+        </div>
+        <div class="table-responsive">
+          <table class="process-table">
+            <thead>
+              <tr>
+                <th>股票</th>
+                <th>权重</th>
+                <th>当日涨跌</th>
+                <th>估值贡献</th>
+              </tr>
+            </thead>
+            <tbody id="process-table-body">
+              <!-- Stock rows -->
+            </tbody>
+          </table>
+        </div>
+        <div class="process-summary" id="process-summary-details">
+          <!-- Details of the calculation -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Valuation Comparison -->
+  <div class="modal-overlay" id="modal-compare-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3><i class="fas fa-balance-scale"></i> 与天天基金估值比较</h3>
+        <button class="modal-close-btn" id="btn-close-compare-modal"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="comparison-hero-grid">
+          <div class="comp-val-box our-val-box">
+            <span class="cv-lbl">本应用估值</span>
+            <span class="cv-val" id="comp-our-val">--</span>
+          </div>
+          <div class="comp-val-box official-val-box">
+            <span class="cv-lbl">天天基金估值</span>
+            <span class="cv-val" id="comp-official-val">--</span>
+          </div>
+        </div>
+        <div class="comparison-diff-row" id="comparison-diff-row">
+          偏差值: <span id="comp-diff-val">--</span>
+        </div>
+        
+        <div class="comparison-details-list">
+          <div class="comp-detail-row">
+            <span class="cd-lbl">估值截止时间</span>
+            <span class="cd-val" id="comp-official-time">--</span>
+          </div>
+          <div class="comp-detail-row">
+            <span class="cd-lbl">最新单位净值</span>
+            <span class="cd-val" id="comp-official-dwjz">--</span>
+          </div>
+          <div class="comp-detail-row">
+            <span class="cd-lbl">官方估算净值</span>
+            <span class="cd-val" id="comp-official-gsz">--</span>
+          </div>
+        </div>
+        
+        <div class="comparison-explanation">
+          <i class="fas fa-circle-info"></i>
+          <p>注：估值差异通常由于最新持仓变动、剩余未公开仓位的市场跟踪偏差、以及现金管理损耗导致。本应用估算以披露的季报重仓股为基准进行仓位等比例放缩/指数追踪，与天天基金官方估算模型在整个基金的处理上可能存在微小差异。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

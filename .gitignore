@@ -1,0 +1,17 @@
+# Dependency directories
+node_modules/
+
+# OS metadata
+.DS_Store
+
+# Android build and local files
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/*.apk
+*.apk
+
+# Temporary/scratch files
+scratch/
