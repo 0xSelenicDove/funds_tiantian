@@ -1265,19 +1265,33 @@ function renderWatchlist() {
     info.appendChild(name);
     info.appendChild(code);
     
-    const predCol = document.createElement('div');
-    predCol.className = 'wl-item-pred-col';
-    const predVal = document.createElement('span');
-    predVal.className = 'wl-item-pred-val';
-    predVal.innerText = '--';
-    predCol.appendChild(predVal);
-    
+    // 天天估值
     const officialCol = document.createElement('div');
     officialCol.className = 'wl-item-official-col';
     const officialVal = document.createElement('span');
     officialVal.className = 'wl-item-official-val';
     officialVal.innerText = '--';
     officialCol.appendChild(officialVal);
+
+    // 自己估值
+    const predCol = document.createElement('div');
+    predCol.className = 'wl-item-pred-col';
+    const predVal = document.createElement('span');
+    predVal.className = 'wl-item-pred-val';
+    predVal.innerText = '--';
+    predCol.appendChild(predVal);
+
+    // 最新涨跌
+    const actualCol = document.createElement('div');
+    actualCol.className = 'wl-item-actual-col';
+    const actualVal = document.createElement('span');
+    actualVal.className = 'wl-item-actual-val';
+    actualVal.innerText = '--';
+    const actualDate = document.createElement('span');
+    actualDate.className = 'wl-item-actual-date';
+    actualDate.innerText = '';
+    actualCol.appendChild(actualVal);
+    actualCol.appendChild(actualDate);
     
     const controls = document.createElement('div');
     controls.className = 'wl-item-controls';
@@ -1313,13 +1327,14 @@ function renderWatchlist() {
     controls.appendChild(delBtn);
     
     card.appendChild(info);
-    card.appendChild(predCol);
     card.appendChild(officialCol);
+    card.appendChild(predCol);
+    card.appendChild(actualCol);
     card.appendChild(controls);
     container.appendChild(card);
     
     if (!watchlistEditMode) {
-      loadWatchlistItemValuations(fav.code, predVal, officialVal);
+      loadWatchlistItemValuations(fav.code, officialVal, predVal, actualVal, actualDate);
     }
   });
 }
@@ -1525,37 +1540,84 @@ function calculateValuationForFund(fundData, prices, model = 'top10', indices = 
   return finalEstimatedChange;
 }
 
-// Load background official actual change and prediction valuations for watchlist items
-async function loadWatchlistItemValuations(code, predValEl, actualValEl) {
+// Load background official valuation, prediction, and actual returns for watchlist items
+async function loadWatchlistItemValuations(code, officialValEl, predValEl, actualValEl, actualDateEl) {
+  // 1. Fetch Tiantian Official Valuation
   try {
-    // Fetch fund details which contains holdings and netWorthTrend
+    const res = await fetch(getApiUrl(`/api/fundgz/${code}`));
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
+    
+    if (data && data.gszzl !== undefined) {
+      const change = parseFloat(data.gszzl);
+      if (!isNaN(change)) {
+        officialValEl.innerText = `${change > 0 ? '+' : ''}${change.toFixed(2)}%`;
+        if (change > 0) {
+          officialValEl.className = 'wl-item-official-val text-up';
+        } else if (change < 0) {
+          officialValEl.className = 'wl-item-official-val text-down';
+        } else {
+          officialValEl.className = 'wl-item-official-val text-flat';
+        }
+      } else {
+        officialValEl.innerText = '0.00%';
+        officialValEl.className = 'wl-item-official-val text-flat';
+      }
+    } else {
+      officialValEl.innerText = '--';
+      officialValEl.className = 'wl-item-official-val text-flat';
+    }
+  } catch (e) {
+    console.error(`Failed to load official valuation for ${code}:`, e);
+    officialValEl.innerText = '失败';
+    officialValEl.className = 'wl-item-official-val text-flat';
+  }
+
+  // 2. Fetch fund details which contains holdings and netWorthTrend
+  try {
     const fundRes = await fetch(getApiUrl(`/api/fund/${code}`));
     if (!fundRes.ok) throw new Error('API error');
     const fundData = await fundRes.json();
 
-    // 1. Display Actual Rise/Fall (Latest Net Asset Value Daily Return)
+    // Display Actual Rise/Fall (Latest Net Asset Value Daily Return) and date
     if (fundData.netWorthTrend && fundData.netWorthTrend.length > 0) {
       const latestValObj = fundData.netWorthTrend[fundData.netWorthTrend.length - 1];
       const change = latestValObj.equityReturn;
+      const dateVal = latestValObj.x;
+      
+      // Update actual value
       if (change !== undefined && change !== null && !isNaN(change)) {
         actualValEl.innerText = `${change > 0 ? '+' : ''}${change.toFixed(2)}%`;
         if (change > 0) {
-          actualValEl.className = 'wl-item-official-val text-up';
+          actualValEl.className = 'wl-item-actual-val text-up';
         } else if (change < 0) {
-          actualValEl.className = 'wl-item-official-val text-down';
+          actualValEl.className = 'wl-item-actual-val text-down';
         } else {
-          actualValEl.className = 'wl-item-official-val text-flat';
+          actualValEl.className = 'wl-item-actual-val text-flat';
         }
       } else {
         actualValEl.innerText = '0.00%';
-        actualValEl.className = 'wl-item-official-val text-flat';
+        actualValEl.className = 'wl-item-actual-val text-flat';
+      }
+      
+      // Update actual date (MM-DD format)
+      if (dateVal) {
+        const jzDate = new Date(dateVal);
+        const m = jzDate.getMonth() + 1;
+        const d = jzDate.getDate();
+        const mStr = m < 10 ? '0' + m : m;
+        const dStr = d < 10 ? '0' + d : d;
+        actualDateEl.innerText = `(${mStr}-${dStr})`;
+      } else {
+        actualDateEl.innerText = '';
       }
     } else {
       actualValEl.innerText = '--';
-      actualValEl.className = 'wl-item-official-val text-flat';
+      actualValEl.className = 'wl-item-actual-val text-flat';
+      actualDateEl.innerText = '';
     }
 
-    // 2. Fetch realtime stock prices and compute Prediction
+    // Fetch realtime stock prices and compute Prediction
     if (!fundData.holdings || fundData.holdings.length === 0) {
       predValEl.innerText = '0.00%';
       predValEl.className = 'wl-item-pred-val text-flat';
@@ -1583,9 +1645,10 @@ async function loadWatchlistItemValuations(code, predValEl, actualValEl) {
       predValEl.className = 'wl-item-pred-val text-flat';
     }
   } catch (e) {
-    console.error(`Failed to load valuations for ${code}:`, e);
+    console.error(`Failed to calculate background prediction for ${code}:`, e);
     actualValEl.innerText = '失败';
-    actualValEl.className = 'wl-item-official-val text-flat';
+    actualValEl.className = 'wl-item-actual-val text-flat';
+    actualDateEl.innerText = '';
     predValEl.innerText = '失败';
     predValEl.className = 'wl-item-pred-val text-flat';
   }
