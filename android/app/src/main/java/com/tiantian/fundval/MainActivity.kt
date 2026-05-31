@@ -73,9 +73,18 @@ class MainActivity : AppCompatActivity() {
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
+                
+                val isNightMode = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+                val nightModeJs = if (isNightMode) {
+                    "document.documentElement.classList.add('dark-theme');"
+                } else {
+                    "document.documentElement.classList.remove('dark-theme');"
+                }
+
                 webView.evaluateJavascript(
                     """
                     (function() {
+                        $nightModeJs
                         var favs = localStorage.getItem('fund_favorites');
                         if (!favs || !favs.includes('011370')) {
                             localStorage.setItem('fund_favorites', JSON.stringify([{"code": "000001", "name": "华夏成长混合"}, {"code": "011370", "name": "华商均衡成长混合C"}]));

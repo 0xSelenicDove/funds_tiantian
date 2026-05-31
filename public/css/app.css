@@ -1273,7 +1273,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  max-width: 60%;
+  flex: 1;
+  min-width: 0;
 }
 .wl-item-name {
   font-size: 14px;
@@ -1750,4 +1751,130 @@ body {
   .status-bar {
     display: none !important;
   }
+}
+
+/* Watchlist Horizontal Scroll Table Wrapper */
+.watchlist-table-scroll-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.watchlist-table-scroll-wrapper::-webkit-scrollbar {
+  height: 4px;
+}
+.watchlist-table-scroll-wrapper::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 2px;
+}
+
+.watchlist-table-header,
+.watchlist-item-card {
+  min-width: 480px;
+}
+
+.watchlist-list.edit-mode,
+.watchlist-list.edit-mode .watchlist-item-card {
+  min-width: 100%;
+}
+
+.watchlist-empty {
+  min-width: 100% !important;
+}
+
+/* --- System Dark Mode Support --- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-color: #0f172a;
+    --panel-color: #1e293b;
+    --panel-hover: #334155;
+    --accent-light: rgba(59, 130, 246, 0.2);
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #64748b;
+    --border-color: #334155;
+    
+    /* Soft colors for dark mode */
+    --color-up: #f87171;
+    --color-up-bg: rgba(239, 68, 68, 0.15);
+    --color-down: #4ade80;
+    --color-down-bg: rgba(22, 163, 74, 0.15);
+  }
+  
+  body {
+    background-color: #0f172a;
+  }
+  
+  .desktop-bg {
+    background: radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(147, 51, 234, 0.05) 0%, transparent 45%),
+                linear-gradient(135deg, #090d16 0%, #0f172a 100%);
+  }
+
+  .phone-frame {
+    background-color: #1e293b;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.5);
+  }
+  
+  .app-container {
+    background-color: var(--bg-color);
+  }
+
+  /* Modals / dialog contents */
+  .modal-content {
+    background-color: #1e293b;
+    border-color: #334155;
+  }
+  
+  /* Keypad buttons background colors */
+  .key-btn {
+    background-color: #1e293b;
+    border-color: #334155;
+  }
+  .key-btn:active {
+    background-color: #334155;
+  }
+}
+
+/* Class-based dark theme overrides for native WebView support */
+html.dark-theme {
+  --bg-color: #0f172a;
+  --panel-color: #1e293b;
+  --panel-hover: #334155;
+  --accent-light: rgba(59, 130, 246, 0.2);
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+  --border-color: #334155;
+  
+  /* Soft colors for dark mode */
+  --color-up: #f87171;
+  --color-up-bg: rgba(239, 68, 68, 0.15);
+  --color-down: #4ade80;
+  --color-down-bg: rgba(22, 163, 74, 0.15);
+}
+html.dark-theme body {
+  background-color: #0f172a;
+}
+html.dark-theme .desktop-bg {
+  background: radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
+              radial-gradient(circle at 90% 80%, rgba(147, 51, 234, 0.05) 0%, transparent 45%),
+              linear-gradient(135deg, #090d16 0%, #0f172a 100%);
+}
+html.dark-theme .phone-frame {
+  background-color: #1e293b;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.5);
+}
+html.dark-theme .app-container {
+  background-color: var(--bg-color);
+}
+html.dark-theme .modal-card {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+html.dark-theme .key-btn {
+  background-color: #1e293b;
+  border-color: #334155;
+}
+html.dark-theme .key-btn:active {
+  background-color: #334155;
 }

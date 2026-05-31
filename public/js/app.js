@@ -27,14 +27,22 @@ function initScaleChart(categories, seriesData) {
     scaleChartInstance.dispose();
   }
   
+  const isDark = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) || document.documentElement.classList.contains('dark-theme');
+  const tooltipBg = isDark ? '#1e293b' : '#ffffff';
+  const tooltipBorder = isDark ? '#334155' : '#e2e8f0';
+  const tooltipText = isDark ? '#f8fafc' : '#0f172a';
+  const labelColor = isDark ? '#cbd5e1' : '#64748b';
+  const axisColor = isDark ? '#475569' : '#cbd5e1';
+  const gridColor = isDark ? '#334155' : '#e2e8f0';
+
   scaleChartInstance = echarts.init(chartDom);
   const option = {
     backgroundColor: 'transparent',
     tooltip: {
       trigger: 'axis',
-      backgroundColor: '#ffffff',
-      borderColor: '#e2e8f0',
-      textStyle: { color: '#0f172a', fontSize: 12 },
+      backgroundColor: tooltipBg,
+      borderColor: tooltipBorder,
+      textStyle: { color: tooltipText, fontSize: 12 },
       formatter: '{b}: {c} 亿元'
     },
     grid: {
@@ -47,13 +55,13 @@ function initScaleChart(categories, seriesData) {
     xAxis: {
       type: 'category',
       data: categories,
-      axisLine: { lineStyle: { color: '#384252' } },
-      axisLabel: { color: '#94a3b8', fontSize: 10 }
+      axisLine: { lineStyle: { color: axisColor } },
+      axisLabel: { color: labelColor, fontSize: 10 }
     },
     yAxis: {
       type: 'value',
-      axisLabel: { color: '#94a3b8', fontSize: 10 },
-      splitLine: { lineStyle: { color: '#262f3f' } }
+      axisLabel: { color: labelColor, fontSize: 10 },
+      splitLine: { lineStyle: { color: gridColor } }
     },
     series: [{
       data: seriesData.map(item => item.y),
@@ -103,14 +111,19 @@ function initHoldingsPieChart(holdingsData) {
     });
   }
 
+  const isDark = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) || document.documentElement.classList.contains('dark-theme');
+  const tooltipBg = isDark ? '#1e293b' : '#ffffff';
+  const tooltipBorder = isDark ? '#334155' : '#e2e8f0';
+  const tooltipText = isDark ? '#f8fafc' : '#0f172a';
+
   pieChartInstance = echarts.init(chartDom);
   const option = {
     backgroundColor: 'transparent',
     tooltip: {
       trigger: 'item',
-      backgroundColor: '#ffffff',
-      borderColor: '#e2e8f0',
-      textStyle: { color: '#0f172a', fontSize: 12 },
+      backgroundColor: tooltipBg,
+      borderColor: tooltipBorder,
+      textStyle: { color: tooltipText, fontSize: 12 },
       formatter: '{b}: {c}%'
     },
     legend: {
@@ -168,6 +181,10 @@ function initManagerRadarChart(domId, power) {
     max: 100
   }));
 
+  const isDark = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) || document.documentElement.classList.contains('dark-theme');
+  const radarLineColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)';
+  const labelColor = isDark ? '#cbd5e1' : '#64748b';
+
   const option = {
     backgroundColor: 'transparent',
     radar: {
@@ -175,13 +192,13 @@ function initManagerRadarChart(domId, power) {
       radius: '65%',
       splitNumber: 4,
       axisName: {
-        color: '#94a3b8',
+        color: labelColor,
         fontSize: 10,
         padding: [3, 5]
       },
       splitLine: {
         lineStyle: {
-          color: 'rgba(255, 255, 255, 0.05)'
+          color: radarLineColor
         }
       },
       splitArea: {
@@ -189,7 +206,7 @@ function initManagerRadarChart(domId, power) {
       },
       axisLine: {
         lineStyle: {
-          color: 'rgba(255, 255, 255, 0.05)'
+          color: radarLineColor
         }
       }
     },
@@ -1337,6 +1354,7 @@ function renderWatchlist() {
       loadWatchlistItemValuations(fav.code, officialVal, predVal, actualVal, actualDate);
     }
   });
+
 }
 
 function moveWatchlistItem(index, offset) {
