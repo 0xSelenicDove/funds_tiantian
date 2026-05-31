@@ -1339,6 +1339,69 @@ body {
   border: 1px dashed var(--accent-color);
 }
 
+/* Watchlist Table Headers & Spacing */
+.watchlist-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 8px;
+}
+.wth-name {
+  flex: 1;
+  text-align: left;
+}
+.wth-pred {
+  width: 75px;
+  text-align: right;
+  margin-right: 14px;
+}
+.wth-official {
+  width: 75px;
+  text-align: right;
+  margin-right: 4px;
+}
+
+/* Watchlist Row Alignment */
+.wl-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.watchlist-list.edit-mode .wl-item-info {
+  max-width: 60%;
+}
+.wl-item-pred-col {
+  width: 75px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 800;
+  margin-right: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.wl-item-official-col {
+  width: 75px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 800;
+  margin-right: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.watchlist-list.edit-mode .wl-item-pred-col,
+.watchlist-list.edit-mode .wl-item-official-col {
+  display: none;
+}
+
 /* Market page structure */
 .market-section-title {
   font-size: 13px;

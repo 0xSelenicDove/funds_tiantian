@@ -1181,6 +1181,7 @@ function renderWatchlist() {
   if (!container) return;
   
   const favorites = getFavorites();
+  const header = document.getElementById('watchlist-table-header');
   
   // If editing button clicked and favorites are empty, make sure edit mode is toggled off
   if (favorites.length === 0) {
@@ -1193,6 +1194,8 @@ function renderWatchlist() {
       }
     }
     
+    if (header) header.style.display = 'none';
+    
     container.innerHTML = `
       <div class="watchlist-empty">
         <i class="fa-solid fa-star-half-stroke"></i>
@@ -1203,6 +1206,12 @@ function renderWatchlist() {
     const addBtn = document.getElementById('watchlist-add-btn');
     if (addBtn) addBtn.addEventListener('click', showSearchPage);
     return;
+  }
+  
+  if (watchlistEditMode) {
+    if (header) header.style.display = 'none';
+  } else {
+    if (header) header.style.display = 'flex';
   }
   
   container.innerHTML = '';
@@ -1251,9 +1260,19 @@ function renderWatchlist() {
     info.appendChild(name);
     info.appendChild(code);
     
-    const val = document.createElement('span');
-    val.className = 'wl-item-val';
-    val.innerText = '--';
+    const predCol = document.createElement('div');
+    predCol.className = 'wl-item-pred-col';
+    const predVal = document.createElement('span');
+    predVal.className = 'wl-item-pred-val';
+    predVal.innerText = '--';
+    predCol.appendChild(predVal);
+    
+    const officialCol = document.createElement('div');
+    officialCol.className = 'wl-item-official-col';
+    const officialVal = document.createElement('span');
+    officialVal.className = 'wl-item-official-val';
+    officialVal.innerText = '--';
+    officialCol.appendChild(officialVal);
     
     const controls = document.createElement('div');
     controls.className = 'wl-item-controls';
@@ -1289,12 +1308,13 @@ function renderWatchlist() {
     controls.appendChild(delBtn);
     
     card.appendChild(info);
-    card.appendChild(val);
+    card.appendChild(predCol);
+    card.appendChild(officialCol);
     card.appendChild(controls);
     container.appendChild(card);
     
     if (!watchlistEditMode) {
-      loadWatchlistItemValuation(fav.code, val);
+      loadWatchlistItemValuations(fav.code, predVal, officialVal);
     }
   });
 }
@@ -1420,33 +1440,69 @@ function calculateValuationForFund(fundData, prices, model = 'top10', indices = 
   return finalEstimatedChange;
 }
 
-// Load background valuation for watchlist items
-async function loadWatchlistItemValuation(code, valueEl) {
+// Load background official actual change and prediction valuations for watchlist items
+async function loadWatchlistItemValuations(code, predValEl, actualValEl) {
   try {
-    const res = await fetch(getApiUrl(`/api/fundgz/${code}`));
-    if (!res.ok) throw new Error('API error');
-    const data = await res.json();
-    
-    if (data && data.gszzl !== undefined) {
-      const change = parseFloat(data.gszzl);
-      if (!isNaN(change)) {
-        valueEl.innerText = `${change > 0 ? '+' : ''}${change.toFixed(2)}%`;
+    // Fetch fund details which contains holdings and netWorthTrend
+    const fundRes = await fetch(getApiUrl(`/api/fund/${code}`));
+    if (!fundRes.ok) throw new Error('API error');
+    const fundData = await fundRes.json();
+
+    // 1. Display Actual Rise/Fall (Latest Net Asset Value Daily Return)
+    if (fundData.netWorthTrend && fundData.netWorthTrend.length > 0) {
+      const latestValObj = fundData.netWorthTrend[fundData.netWorthTrend.length - 1];
+      const change = latestValObj.equityReturn;
+      if (change !== undefined && change !== null && !isNaN(change)) {
+        actualValEl.innerText = `${change > 0 ? '+' : ''}${change.toFixed(2)}%`;
         if (change > 0) {
-          valueEl.className = 'wl-item-val text-up';
+          actualValEl.className = 'wl-item-official-val text-up';
         } else if (change < 0) {
-          valueEl.className = 'wl-item-val text-down';
+          actualValEl.className = 'wl-item-official-val text-down';
         } else {
-          valueEl.className = 'wl-item-val text-flat';
+          actualValEl.className = 'wl-item-official-val text-flat';
         }
-        return;
+      } else {
+        actualValEl.innerText = '0.00%';
+        actualValEl.className = 'wl-item-official-val text-flat';
       }
+    } else {
+      actualValEl.innerText = '--';
+      actualValEl.className = 'wl-item-official-val text-flat';
     }
-    valueEl.innerText = '--';
-    valueEl.className = 'wl-item-val text-flat';
+
+    // 2. Fetch realtime stock prices and compute Prediction
+    if (!fundData.holdings || fundData.holdings.length === 0) {
+      predValEl.innerText = '0.00%';
+      predValEl.className = 'wl-item-pred-val text-flat';
+      return;
+    }
+
+    const stockCodes = fundData.holdings.map(h => h.code);
+    const priceRes = await fetch(getApiUrl(`/api/realtime?stocks=${stockCodes.join(',')}`));
+    if (!priceRes.ok) throw new Error('Realtime API error');
+    const prices = await priceRes.json();
+
+    const predChange = calculateValuationForFund(fundData, prices, getPreferredModel(), latestIndices);
+    
+    if (predChange !== undefined && predChange !== null && !isNaN(predChange)) {
+      predValEl.innerText = `${predChange > 0 ? '+' : ''}${predChange.toFixed(2)}%`;
+      if (predChange > 0) {
+        predValEl.className = 'wl-item-pred-val text-up';
+      } else if (predChange < 0) {
+        predValEl.className = 'wl-item-pred-val text-down';
+      } else {
+        predValEl.className = 'wl-item-pred-val text-flat';
+      }
+    } else {
+      predValEl.innerText = '0.00%';
+      predValEl.className = 'wl-item-pred-val text-flat';
+    }
   } catch (e) {
-    console.error(`Failed to load background official valuation for ${code}:`, e);
-    valueEl.innerText = '获取失败';
-    valueEl.className = 'wl-item-val text-flat';
+    console.error(`Failed to load valuations for ${code}:`, e);
+    actualValEl.innerText = '失败';
+    actualValEl.className = 'wl-item-official-val text-flat';
+    predValEl.innerText = '失败';
+    predValEl.className = 'wl-item-pred-val text-flat';
   }
 }
 
