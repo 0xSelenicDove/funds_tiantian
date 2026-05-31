@@ -75,6 +75,7 @@ app.get('/api/fund/:code', async (req, res) => {
     const assetAllocation = parseJsonVar('Data_assetAllocation') || null;
     const performanceEvaluation = parseJsonVar('Data_performanceEvaluation') || null;
     const buyRedemption = parseJsonVar('Data_buySedemption') || null;
+    const netWorthTrend = parseJsonVar('Data_netWorthTrend') || [];
 
     // 2. Fetch jbgk (Fund basic profile for company details)
     const jbgkUrl = `http://fundf10.eastmoney.com/jbgk_${code}.html`;
@@ -133,10 +134,11 @@ app.get('/api/fund/:code', async (req, res) => {
 
     let holdings = [];
     let holdingsDate = '';
+    let previousHoldings = [];
+    let foundLatest = false;
     
     // We will search for the latest holdings by trying recent years and quarters
     for (const year of years) {
-      if (holdings.length > 0) break;
       for (const month of [12, 9, 6, 3]) {
         const holdingsUrl = `http://fundf10.eastmoney.com/FundArchivesDatas.aspx?type=jjcc&code=${code}&year=${year}&month=${month}`;
         try {
@@ -184,15 +186,46 @@ app.get('/api/fund/:code', async (req, res) => {
           }
 
           if (validRows.length > 0) {
-            holdings = validRows;
-            const dateMatch = contentHtml.match(/截止至：<font class=['"]px12['"]>(.*?)<\/font>/);
-            holdingsDate = dateMatch ? dateMatch[1] : `${year}-${month}`;
-            break;
+            if (!foundLatest) {
+              holdings = validRows;
+              const dateMatch = contentHtml.match(/截止至：<font class=['"]px12['"]>(.*?)<\/font>/);
+              holdingsDate = dateMatch ? dateMatch[1] : `${year}-${month}`;
+              foundLatest = true;
+            } else {
+              previousHoldings = validRows;
+              break;
+            }
           }
         } catch (e) {
           console.error(`Error fetching holdings for ${year}-${month}:`, e);
         }
       }
+      if (foundLatest && previousHoldings.length > 0) {
+        break;
+      }
+    }
+
+    // Compare holdings to calculate weight changes
+    if (holdings.length > 0) {
+      const prevMap = new Map();
+      previousHoldings.forEach(prev => {
+        prevMap.set(prev.code, prev.weight);
+      });
+
+      holdings = holdings.map(curr => {
+        const prevWeight = prevMap.get(curr.code);
+        let comparePercent = '新进';
+        if (prevWeight) {
+          const currW = parseFloat(curr.weight.replace('%', ''));
+          const prevW = parseFloat(prevWeight.replace('%', ''));
+          const diff = currW - prevW;
+          comparePercent = (diff > 0 ? '+' : '') + diff.toFixed(2);
+        }
+        return {
+          ...curr,
+          comparePercent
+        };
+      });
     }
 
     res.json({
@@ -223,6 +256,7 @@ app.get('/api/fund/:code', async (req, res) => {
       assetAllocation,
       performanceEvaluation,
       buyRedemption,
+      netWorthTrend,
       holdings,
       holdingsDate,
       limitBuy

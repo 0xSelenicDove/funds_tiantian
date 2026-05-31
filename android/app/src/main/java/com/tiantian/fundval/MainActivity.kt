@@ -344,6 +344,7 @@ class MainActivity : AppCompatActivity() {
         val assetAllocation = getRawJsVal("Data_assetAllocation")
         val performanceEvaluation = getRawJsVal("Data_performanceEvaluation")
         val buyRedemption = getRawJsVal("Data_buySedemption")
+        val netWorthTrend = getRawJsVal("Data_netWorthTrend").ifEmpty { "[]" }
 
         // Fetch basic profiles
         val jbgkHtml = fetchUrl("http://fundf10.eastmoney.com/jbgk_$code.html")
@@ -392,11 +393,49 @@ class MainActivity : AppCompatActivity() {
             years = (arryearMatch.group(1) ?: "").split(",").mapNotNull { it.trim().toIntOrNull() }
         }
 
-        var holdingsJson = "[]"
+        val parseHoldingsList = fun(contentHtml: String): List<Map<String, String>> {
+            val list = mutableListOf<Map<String, String>>()
+            val trMatches = Pattern.compile("<tr>(.*?)</tr>", Pattern.DOTALL).matcher(contentHtml)
+            while (trMatches.find()) {
+                val tr = trMatches.group(1) ?: ""
+                if (tr.contains("序号") || tr.contains("股票代码")) continue
+
+                val tdMatches = Pattern.compile("<td.*?>(.*?)</td>", Pattern.DOTALL).matcher(tr)
+                val tdVals = mutableListOf<String>()
+                while (tdMatches.find()) {
+                    tdVals.add(tdMatches.group(1)?.replace("<.*?>".toRegex(), "")?.replace("&nbsp;", " ")?.trim() ?: "")
+                }
+
+                if (tdVals.size >= 6) {
+                    val weight = tdVals.firstOrNull { it.endsWith("%") }
+                    if (weight != null) {
+                        val rank = tdVals.getOrNull(0) ?: ""
+                        val stCode = tdVals.getOrNull(1) ?: ""
+                        val name = tdVals.getOrNull(2) ?: ""
+                        val idx = tdVals.indexOf(weight)
+                        val shares = tdVals.getOrNull(idx + 1) ?: ""
+                        val value = tdVals.getOrNull(idx + 2) ?: ""
+
+                        list.add(mapOf(
+                            "rank" to rank,
+                            "code" to stCode,
+                            "name" to name,
+                            "weight" to weight,
+                            "shares" to shares,
+                            "value" to value
+                        ))
+                    }
+                }
+            }
+            return list
+        }
+
+        var holdings = listOf<Map<String, String>>()
         var holdingsDate = ""
+        var previousHoldings = listOf<Map<String, String>>()
+        var foundLatest = false
 
         for (year in years) {
-            if (holdingsDate.isNotEmpty()) break
             for (month in listOf(12, 9, 6, 3)) {
                 val hUrl = "http://fundf10.eastmoney.com/FundArchivesDatas.aspx?type=jjcc&code=$code&year=$year&month=$month"
                 val hText = fetchUrl(hUrl, "http://fundf10.eastmoney.com/ccmx_$code.html")
@@ -409,45 +448,59 @@ class MainActivity : AppCompatActivity() {
                         .replace("\\\\/", "/")
                         .replace("\\/", "/")
 
-                    val trMatches = Pattern.compile("<tr>(.*?)</tr>", Pattern.DOTALL).matcher(contentHtml)
-                    val holdingsList = mutableListOf<String>()
-
-                    while (trMatches.find()) {
-                        val tr = trMatches.group(1) ?: ""
-                        if (tr.contains("序号") || tr.contains("股票代码")) continue
-
-                        val tdMatches = Pattern.compile("<td.*?>(.*?)</td>", Pattern.DOTALL).matcher(tr)
-                        val tdVals = mutableListOf<String>()
-                        while (tdMatches.find()) {
-                            tdVals.add(tdMatches.group(1)?.replace("<.*?>".toRegex(), "")?.replace("&nbsp;", " ")?.trim() ?: "")
+                    val list = parseHoldingsList(contentHtml)
+                    if (list.isNotEmpty()) {
+                        if (!foundLatest) {
+                            holdings = list
+                            val dateMatch = Pattern.compile("截止至：<font class=['\"]px12['\"]>(.*?)</font>").matcher(contentHtml)
+                            holdingsDate = if (dateMatch.find()) dateMatch.group(1) ?: "" else "$year-$month"
+                            foundLatest = true
+                        } else {
+                            previousHoldings = list
+                            break
                         }
-
-                        if (tdVals.size >= 6) {
-                            val weight = tdVals.firstOrNull { it.endsWith("%") }
-                            if (weight != null) {
-                                val rank = tdVals.getOrNull(0) ?: ""
-                                val stCode = tdVals.getOrNull(1) ?: ""
-                                val name = tdVals.getOrNull(2) ?: ""
-                                val idx = tdVals.indexOf(weight)
-                                val shares = tdVals.getOrNull(idx + 1) ?: ""
-                                val value = tdVals.getOrNull(idx + 2) ?: ""
-
-                                holdingsList.add(
-                                    """{"rank":"$rank","code":"$stCode","name":"$name","weight":"$weight","shares":"$shares","value":"$value"}"""
-                                )
-                            }
-                        }
-                    }
-
-                    if (holdingsList.isNotEmpty()) {
-                        holdingsJson = "[${holdingsList.joinToString(",")}]"
-                        val dateMatch = Pattern.compile("截止至：<font class=['\"]px12['\"]>(.*?)</font>").matcher(contentHtml)
-                        holdingsDate = if (dateMatch.find()) dateMatch.group(1) ?: "" else "$year-$month"
-                        break
                     }
                 }
             }
+            if (foundLatest && previousHoldings.isNotEmpty()) {
+                break
+            }
         }
+
+        // Compare holdings to calculate weight changes
+        val prevMap = mutableMapOf<String, String>()
+        for (prev in previousHoldings) {
+            val prevCode = prev["code"]
+            val prevWeight = prev["weight"]
+            if (prevCode != null && prevWeight != null) {
+                prevMap[prevCode] = prevWeight
+            }
+        }
+
+        val holdingsListStr = mutableListOf<String>()
+        for (curr in holdings) {
+            val currCode = curr["code"] ?: ""
+            val currWeight = curr["weight"] ?: ""
+            val prevWeight = prevMap[currCode]
+            var comparePercent = "新进"
+            if (prevWeight != null) {
+                val currW = currWeight.replace("%", "").toDoubleOrNull() ?: 0.0
+                val prevW = prevWeight.replace("%", "").toDoubleOrNull() ?: 0.0
+                val diff = currW - prevW
+                val prefix = if (diff > 0) "+" else ""
+                comparePercent = prefix + String.format("%.2f", diff)
+            }
+            
+            val rank = curr["rank"] ?: ""
+            val name = curr["name"] ?: ""
+            val shares = curr["shares"] ?: ""
+            val value = curr["value"] ?: ""
+            
+            holdingsListStr.add(
+                """{"rank":"$rank","code":"$currCode","name":"$name","weight":"$currWeight","shares":"$shares","value":"$value","comparePercent":"$comparePercent"}"""
+            )
+        }
+        val holdingsJson = "[${holdingsListStr.joinToString(",")}]"
 
         return """{
             "code": "$fundCode",
@@ -479,7 +532,8 @@ class MainActivity : AppCompatActivity() {
             "buyRedemption": $buyRedemption,
             "holdings": $holdingsJson,
             "holdingsDate": "$holdingsDate",
-            "limitBuy": "$limitBuy"
+            "limitBuy": "$limitBuy",
+            "netWorthTrend": $netWorthTrend
         }""".replace("\n", " ").replace("\\s+".toRegex(), " ")
     }
 }

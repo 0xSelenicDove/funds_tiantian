@@ -870,6 +870,26 @@ body {
   font-size: 11px;
   font-weight: 600;
 }
+.h-compare-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  text-align: right;
+  min-width: 55px;
+}
+.h-compare-lbl {
+  font-size: 8px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-bottom: 1px;
+}
+.h-compare-val {
+  font-size: 11px;
+  font-weight: 700;
+}
+.text-new {
+  color: #3b82f6 !important;
+}
 .h-contribution-badge {
   width: 60px;
   height: 38px;
@@ -1270,6 +1290,53 @@ body {
 .wl-item-val {
   font-size: 18px;
   font-weight: 800;
+}
+
+/* Watchlist Edit/Management Mode */
+.watchlist-list.edit-mode .watchlist-item-card {
+  cursor: grab;
+}
+.watchlist-list.edit-mode .watchlist-item-card:active {
+  cursor: grabbing;
+}
+.watchlist-list.edit-mode .wl-item-val {
+  display: none;
+}
+.wl-item-controls {
+  display: none;
+  gap: 6px;
+  align-items: center;
+}
+.watchlist-list.edit-mode .wl-item-controls {
+  display: flex;
+}
+.wl-control-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 15px;
+  padding: 6px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wl-control-btn:hover {
+  background-color: var(--panel-hover);
+  color: var(--text-primary);
+}
+.wl-control-btn.wl-delete-btn {
+  color: #ef4444;
+}
+.wl-control-btn.wl-delete-btn:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+.watchlist-item-card.dragging {
+  opacity: 0.4;
+  border: 1px dashed var(--accent-color);
 }
 
 /* Market page structure */

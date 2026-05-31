@@ -8,6 +8,7 @@ let managerChartInstances = [];
 let latestIndices = [];
 let currentHoldings = [];
 let currentPrices = {};
+let watchlistEditMode = false;
 
 
 // Helper: Resolve API URLs depending on environment
@@ -79,6 +80,12 @@ function initHoldingsPieChart(holdingsData) {
 
   if (pieChartInstance) {
     pieChartInstance.dispose();
+    pieChartInstance = null;
+  }
+
+  if (!holdingsData || holdingsData.length === 0) {
+    chartDom.innerHTML = '<div class="no-history-text" style="line-height:200px; text-align:center; padding-top: 80px;">暂无股票持仓</div>';
+    return;
   }
 
   // Pre-process pie data
@@ -509,6 +516,34 @@ function startDashboardRealtime(holdings) {
         document.getElementById('valuation-percentage').innerText = '0.00%';
         document.getElementById('valuation-status').innerText = '该基金暂无股票持仓，无法估值';
         document.getElementById('valuation-card').className = 'valuation-hero-card';
+        
+        // Clear details grid
+        document.getElementById('top10-weight-sum').innerText = '--';
+        document.getElementById('top10-avg-change').innerText = '--';
+        document.getElementById('top10-avg-change').className = 'di-val text-flat';
+        const stockPosDom = document.getElementById('stock-position-val');
+        if (stockPosDom) {
+          let stockPosition = 0;
+          let hasStockAlloc = false;
+          if (currentFundData && currentFundData.assetAllocation && currentFundData.assetAllocation.series) {
+            const stockSeries = currentFundData.assetAllocation.series.find(s => s.name && s.name.includes('股票'));
+            if (stockSeries && stockSeries.data && stockSeries.data.length > 0) {
+              stockPosition = stockSeries.data[stockSeries.data.length - 1];
+              hasStockAlloc = true;
+            }
+          }
+          stockPosDom.innerText = hasStockAlloc ? `${stockPosition.toFixed(2)}%` : '--';
+        }
+        
+        // Clear holdings list
+        const holdingsItemsContainer = document.getElementById('holdings-list-items');
+        if (holdingsItemsContainer) {
+          holdingsItemsContainer.innerHTML = '<span class="no-history-text" style="display:block; text-align:center; padding: 20px;">该基金暂无公开的股票持仓明细</span>';
+        }
+        
+        // Clear pie chart
+        initHoldingsPieChart([]);
+        
         return;
       }
       
@@ -607,6 +642,39 @@ function calculateEstimatedNAV(holdings, prices) {
       priceCol.appendChild(priceVal);
       priceCol.appendChild(priceChange);
       
+      const compareCol = document.createElement('div');
+      compareCol.className = 'h-compare-col';
+      
+      const compareLbl = document.createElement('span');
+      compareLbl.className = 'h-compare-lbl';
+      compareLbl.innerText = '较上期';
+      
+      const compareVal = document.createElement('span');
+      let compareText = '--';
+      let compareClass = 'text-flat';
+      
+      if (stock.comparePercent === '新进') {
+        compareText = '新进';
+        compareClass = 'text-new';
+      } else if (stock.comparePercent) {
+        const val = parseFloat(stock.comparePercent);
+        if (val > 0) {
+          compareText = `↑ ${val.toFixed(2)}%`;
+          compareClass = 'text-up';
+        } else if (val < 0) {
+          compareText = `↓ ${Math.abs(val).toFixed(2)}%`;
+          compareClass = 'text-down';
+        } else {
+          compareText = '0.00%';
+          compareClass = 'text-flat';
+        }
+      }
+      compareVal.className = `h-compare-val ${compareClass}`;
+      compareVal.innerText = compareText;
+      
+      compareCol.appendChild(compareLbl);
+      compareCol.appendChild(compareVal);
+
       const contribBadge = document.createElement('div');
       contribBadge.className = 'h-contribution-badge';
       
@@ -623,6 +691,7 @@ function calculateEstimatedNAV(holdings, prices) {
       }
       
       pricingDiv.appendChild(priceCol);
+      pricingDiv.appendChild(compareCol);
       pricingDiv.appendChild(contribBadge);
       
       card.appendChild(infoCol);
@@ -800,6 +869,36 @@ async function queryFund(code) {
     document.getElementById('attr-custodian').innerText = fundData.custodian || '--';
     document.getElementById('attr-benchmark').innerText = fundData.benchmark || '--';
     document.getElementById('attr-limit-buy').innerText = fundData.limitBuy || '不限购';
+    
+    // Extract latest net worth and change
+    if (fundData.netWorthTrend && fundData.netWorthTrend.length > 0) {
+      const latestValObj = fundData.netWorthTrend[fundData.netWorthTrend.length - 1];
+      const jzVal = latestValObj.y;
+      const jzChange = latestValObj.equityReturn;
+      const jzDate = new Date(latestValObj.x);
+      const dateStr = `${jzDate.getMonth() + 1}-${jzDate.getDate()}`;
+      
+      document.getElementById('attr-latest-networth').innerText = `${jzVal.toFixed(4)} (${dateStr})`;
+      
+      const changeEl = document.getElementById('attr-latest-change');
+      if (jzChange !== undefined && jzChange !== null && !isNaN(jzChange)) {
+        changeEl.innerText = `${jzChange > 0 ? '+' : ''}${jzChange.toFixed(2)}%`;
+        if (jzChange > 0) {
+          changeEl.className = 'attr-val text-up';
+        } else if (jzChange < 0) {
+          changeEl.className = 'attr-val text-down';
+        } else {
+          changeEl.className = 'attr-val text-flat';
+        }
+      } else {
+        changeEl.innerText = '0.00%';
+        changeEl.className = 'attr-val text-flat';
+      }
+    } else {
+      document.getElementById('attr-latest-networth').innerText = '--';
+      document.getElementById('attr-latest-change').innerText = '--';
+      document.getElementById('attr-latest-change').className = 'attr-val text-flat';
+    }
     
     // Fees
     document.getElementById('fee-management').innerText = fundData.fees.management || '--';
@@ -1082,7 +1181,18 @@ function renderWatchlist() {
   if (!container) return;
   
   const favorites = getFavorites();
+  
+  // If editing button clicked and favorites are empty, make sure edit mode is toggled off
   if (favorites.length === 0) {
+    if (watchlistEditMode) {
+      watchlistEditMode = false;
+      const manageBtn = document.getElementById('watchlist-manage-btn');
+      if (manageBtn) {
+        manageBtn.innerHTML = '<i class="fa-solid fa-gear"></i> 管理';
+        manageBtn.style.color = '';
+      }
+    }
+    
     container.innerHTML = `
       <div class="watchlist-empty">
         <i class="fa-solid fa-star-half-stroke"></i>
@@ -1096,13 +1206,36 @@ function renderWatchlist() {
   }
   
   container.innerHTML = '';
-  favorites.forEach(fav => {
+  if (watchlistEditMode) {
+    container.classList.add('edit-mode');
+  } else {
+    container.classList.remove('edit-mode');
+  }
+
+  favorites.forEach((fav, index) => {
     const card = document.createElement('div');
     card.className = 'watchlist-item-card';
     card.setAttribute('data-code', fav.code);
-    card.addEventListener('click', () => {
+    card.setAttribute('data-index', index);
+    if (watchlistEditMode) {
+      card.setAttribute('draggable', 'true');
+    }
+    
+    card.addEventListener('click', (e) => {
+      if (watchlistEditMode) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       queryFund(fav.code);
     });
+
+    if (watchlistEditMode) {
+      card.addEventListener('dragstart', handleDragStart);
+      card.addEventListener('dragover', handleDragOver);
+      card.addEventListener('drop', handleDrop);
+      card.addEventListener('dragend', handleDragEnd);
+    }
 
     const info = document.createElement('div');
     info.className = 'wl-item-info';
@@ -1122,11 +1255,122 @@ function renderWatchlist() {
     val.className = 'wl-item-val';
     val.innerText = '--';
     
+    const controls = document.createElement('div');
+    controls.className = 'wl-item-controls';
+    
+    const upBtn = document.createElement('button');
+    upBtn.className = 'wl-control-btn wl-up-btn';
+    upBtn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
+    if (index === 0) upBtn.style.visibility = 'hidden';
+    upBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      moveWatchlistItem(index, -1);
+    });
+    
+    const downBtn = document.createElement('button');
+    downBtn.className = 'wl-control-btn wl-down-btn';
+    downBtn.innerHTML = '<i class="fa-solid fa-arrow-down"></i>';
+    if (index === favorites.length - 1) downBtn.style.visibility = 'hidden';
+    downBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      moveWatchlistItem(index, 1);
+    });
+    
+    const delBtn = document.createElement('button');
+    delBtn.className = 'wl-control-btn wl-delete-btn';
+    delBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteWatchlistItem(index);
+    });
+    
+    controls.appendChild(upBtn);
+    controls.appendChild(downBtn);
+    controls.appendChild(delBtn);
+    
     card.appendChild(info);
     card.appendChild(val);
+    card.appendChild(controls);
     container.appendChild(card);
     
-    loadWatchlistItemValuation(fav.code, val);
+    if (!watchlistEditMode) {
+      loadWatchlistItemValuation(fav.code, val);
+    }
+  });
+}
+
+function moveWatchlistItem(index, offset) {
+  let favorites = getFavorites();
+  const targetIndex = index + offset;
+  if (targetIndex >= 0 && targetIndex < favorites.length) {
+    const temp = favorites[index];
+    favorites[index] = favorites[targetIndex];
+    favorites[targetIndex] = temp;
+    localStorage.setItem('fund_favorites', JSON.stringify(favorites));
+    renderWatchlist();
+  }
+}
+
+function deleteWatchlistItem(index) {
+  let favorites = getFavorites();
+  favorites.splice(index, 1);
+  localStorage.setItem('fund_favorites', JSON.stringify(favorites));
+  renderWatchlist();
+}
+
+let dragSrcIndex = null;
+
+function handleDragStart(e) {
+  dragSrcIndex = parseInt(this.getAttribute('data-index'));
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', dragSrcIndex);
+}
+
+function handleDragOver(e) {
+  if (e.preventDefault) {
+    e.preventDefault();
+  }
+  e.dataTransfer.dropEffect = 'move';
+  return false;
+}
+
+function handleDrop(e) {
+  e.stopPropagation();
+  e.preventDefault();
+  
+  const targetIndex = parseInt(this.getAttribute('data-index'));
+  if (dragSrcIndex !== null && dragSrcIndex !== targetIndex) {
+    let favorites = getFavorites();
+    const dragItem = favorites[dragSrcIndex];
+    
+    favorites.splice(dragSrcIndex, 1);
+    favorites.splice(targetIndex, 0, dragItem);
+    
+    localStorage.setItem('fund_favorites', JSON.stringify(favorites));
+    renderWatchlist();
+  }
+  return false;
+}
+
+function handleDragEnd(e) {
+  this.classList.remove('dragging');
+  dragSrcIndex = null;
+}
+
+// Bind watchlist manage button click
+const manageBtn = document.getElementById('watchlist-manage-btn');
+if (manageBtn) {
+  manageBtn.addEventListener('click', () => {
+    watchlistEditMode = !watchlistEditMode;
+    if (watchlistEditMode) {
+      manageBtn.innerHTML = '<i class="fa-solid fa-check"></i> 完成';
+      manageBtn.style.color = 'var(--accent-color)';
+    } else {
+      manageBtn.innerHTML = '<i class="fa-solid fa-gear"></i> 管理';
+      manageBtn.style.color = '';
+    }
+    renderWatchlist();
   });
 }
 

@@ -44,7 +44,10 @@
         <div class="page main-page active" id="main-page">
           <div class="main-header">
             <h2 id="main-header-title">自选估值</h2>
-            <button class="search-trigger-btn" id="search-trigger-btn"><i class="fas fa-plus"></i> 自选</button>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button class="search-trigger-btn" id="watchlist-manage-btn" style="background-color: transparent; border-color: var(--border-color); color: var(--text-secondary);"><i class="fa-solid fa-gear"></i> 管理</button>
+              <button class="search-trigger-btn" id="search-trigger-btn"><i class="fas fa-plus"></i> 自选</button>
+            </div>
           </div>
 
           <div class="main-tab-panels">
@@ -270,6 +273,14 @@
                     <div class="attr-row">
                       <span class="attr-name">业绩基准</span>
                       <span class="attr-val" id="attr-benchmark">--</span>
+                    </div>
+                    <div class="attr-row">
+                      <span class="attr-name">最新净值</span>
+                      <span class="attr-val" id="attr-latest-networth">--</span>
+                    </div>
+                    <div class="attr-row">
+                      <span class="attr-name">净值涨跌</span>
+                      <span class="attr-val" id="attr-latest-change">--</span>
                     </div>
                     <div class="attr-row">
                       <span class="attr-name">日限购额</span>
