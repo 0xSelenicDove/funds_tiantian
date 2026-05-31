@@ -1244,6 +1244,11 @@ function renderWatchlist() {
       card.addEventListener('dragover', handleDragOver);
       card.addEventListener('drop', handleDrop);
       card.addEventListener('dragend', handleDragEnd);
+      
+      // Touch drag-and-drop support for mobile/WebViews
+      card.addEventListener('touchstart', handleTouchStart, { passive: false });
+      card.addEventListener('touchmove', handleTouchMove, { passive: false });
+      card.addEventListener('touchend', handleTouchEnd);
     }
 
     const info = document.createElement('div');
@@ -1376,6 +1381,86 @@ function handleDrop(e) {
 function handleDragEnd(e) {
   this.classList.remove('dragging');
   dragSrcIndex = null;
+}
+
+// Touch event handlers for reordering watchlist items on mobile/WebViews
+let touchDragCard = null;
+let touchDragSrcIndex = null;
+
+function handleTouchStart(e) {
+  if (!watchlistEditMode) return;
+  touchDragCard = this;
+  touchDragSrcIndex = parseInt(this.getAttribute('data-index'));
+  this.classList.add('dragging');
+}
+
+function handleTouchMove(e) {
+  if (!watchlistEditMode || touchDragSrcIndex === null || !touchDragCard) return;
+  
+  // Prevent default scrolling behaviour when dragging
+  e.preventDefault();
+  
+  const touch = e.touches[0];
+  const touchX = touch.clientX;
+  const touchY = touch.clientY;
+  
+  const elementUnderTouch = document.elementFromPoint(touchX, touchY);
+  if (!elementUnderTouch) return;
+  
+  const targetCard = elementUnderTouch.closest('.watchlist-item-card');
+  const container = document.getElementById('watchlist-items-container');
+  if (targetCard && targetCard !== touchDragCard && container.contains(targetCard)) {
+    const targetIndex = parseInt(targetCard.getAttribute('data-index'));
+    if (!isNaN(targetIndex) && !isNaN(touchDragSrcIndex)) {
+      // Visually swap in DOM tree without rebuilding
+      if (touchDragSrcIndex < targetIndex) {
+        targetCard.after(touchDragCard);
+      } else {
+        targetCard.before(touchDragCard);
+      }
+      
+      // Update data-index attribute values on all cards in container
+      const cards = container.getElementsByClassName('watchlist-item-card');
+      Array.from(cards).forEach((c, idx) => {
+        c.setAttribute('data-index', idx);
+      });
+      
+      touchDragSrcIndex = targetIndex;
+    }
+  }
+}
+
+function handleTouchEnd(e) {
+  if (!watchlistEditMode) return;
+  
+  if (touchDragCard) {
+    touchDragCard.classList.remove('dragging');
+  }
+  
+  if (touchDragSrcIndex !== null) {
+    const container = document.getElementById('watchlist-items-container');
+    const cards = container.getElementsByClassName('watchlist-item-card');
+    
+    // Read new visual order from DOM and update localStorage favorites list
+    const favorites = getFavorites();
+    const newFavorites = [];
+    
+    Array.from(cards).forEach(card => {
+      const code = card.getAttribute('data-code');
+      const favItem = favorites.find(f => f.code === code);
+      if (favItem) {
+        newFavorites.push(favItem);
+      }
+    });
+    
+    localStorage.setItem('fund_favorites', JSON.stringify(newFavorites));
+    
+    // Refresh/render watchlist to trigger clean up
+    renderWatchlist();
+  }
+  
+  touchDragCard = null;
+  touchDragSrcIndex = null;
 }
 
 // Bind watchlist manage button click
