@@ -109,6 +109,20 @@ app.get('/api/fund/:code', async (req, res) => {
     const cFee = extractJbgkField('托管费率');
     const benchmark = extractJbgkField('业绩比较基准');
 
+    // Extract purchase limit
+    let limitBuy = '不限购';
+    const limitMatch = jbgkText.match(/交易状态：([\s\S]*?)<\/label>/);
+    if (limitMatch) {
+      let raw = limitMatch[1];
+      raw = raw.replace(/<.*?>/g, '');
+      raw = raw.replace(/&nbsp;/g, '');
+      raw = raw.replace(/\s+/g, ' ').trim();
+      raw = raw.replace(/(开放|暂停)赎回/g, '').trim();
+      if (raw) {
+        limitBuy = raw.replace(/"/g, '\\"');
+      }
+    }
+
     // 3. Fetch holdings
     // Extract years from arryear in text, e.g., arryear:[2026,2025...]
     let years = [new Date().getFullYear()];
@@ -210,7 +224,8 @@ app.get('/api/fund/:code', async (req, res) => {
       performanceEvaluation,
       buyRedemption,
       holdings,
-      holdingsDate
+      holdingsDate,
+      limitBuy
     });
 
   } catch (err) {

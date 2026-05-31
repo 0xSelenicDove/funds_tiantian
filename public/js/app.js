@@ -799,6 +799,7 @@ async function queryFund(code) {
     document.getElementById('attr-establish-date').innerText = fundData.establishDate || '--';
     document.getElementById('attr-custodian').innerText = fundData.custodian || '--';
     document.getElementById('attr-benchmark').innerText = fundData.benchmark || '--';
+    document.getElementById('attr-limit-buy').innerText = fundData.limitBuy || '不限购';
     
     // Fees
     document.getElementById('fee-management').innerText = fundData.fees.management || '--';
@@ -1178,33 +1179,28 @@ function calculateValuationForFund(fundData, prices, model = 'top10', indices = 
 // Load background valuation for watchlist items
 async function loadWatchlistItemValuation(code, valueEl) {
   try {
-    const fundRes = await fetch(getApiUrl(`/api/fund/${code}`));
-    if (!fundRes.ok) throw new Error('API error');
-    const fundData = await fundRes.json();
+    const res = await fetch(getApiUrl(`/api/fundgz/${code}`));
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
     
-    if (!fundData.holdings || fundData.holdings.length === 0) {
-      valueEl.innerText = '0.00%';
-      valueEl.className = 'wl-item-val text-flat';
-      return;
+    if (data && data.gszzl !== undefined) {
+      const change = parseFloat(data.gszzl);
+      if (!isNaN(change)) {
+        valueEl.innerText = `${change > 0 ? '+' : ''}${change.toFixed(2)}%`;
+        if (change > 0) {
+          valueEl.className = 'wl-item-val text-up';
+        } else if (change < 0) {
+          valueEl.className = 'wl-item-val text-down';
+        } else {
+          valueEl.className = 'wl-item-val text-flat';
+        }
+        return;
+      }
     }
-    
-    const stockCodes = fundData.holdings.map(h => h.code);
-    const priceRes = await fetch(getApiUrl(`/api/realtime?stocks=${stockCodes.join(',')}`));
-    if (!priceRes.ok) throw new Error('API error');
-    const prices = await priceRes.json();
-    
-    const change = calculateValuationForFund(fundData, prices, getPreferredModel(), latestIndices);
-    
-    valueEl.innerText = `${change > 0 ? '+' : ''}${change.toFixed(2)}%`;
-    if (change > 0) {
-      valueEl.className = 'wl-item-val text-up';
-    } else if (change < 0) {
-      valueEl.className = 'wl-item-val text-down';
-    } else {
-      valueEl.className = 'wl-item-val text-flat';
-    }
+    valueEl.innerText = '--';
+    valueEl.className = 'wl-item-val text-flat';
   } catch (e) {
-    console.error(`Failed to load background valuation for ${code}:`, e);
+    console.error(`Failed to load background official valuation for ${code}:`, e);
     valueEl.innerText = '获取失败';
     valueEl.className = 'wl-item-val text-flat';
   }

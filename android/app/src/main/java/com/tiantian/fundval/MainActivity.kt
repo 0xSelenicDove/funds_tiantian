@@ -77,8 +77,8 @@ class MainActivity : AppCompatActivity() {
                     """
                     (function() {
                         var favs = localStorage.getItem('fund_favorites');
-                        if (!favs || favs === '[]') {
-                            localStorage.setItem('fund_favorites', JSON.stringify([{"code": "000001", "name": "华夏成长混合"}]));
+                        if (!favs || !favs.includes('011370')) {
+                            localStorage.setItem('fund_favorites', JSON.stringify([{"code": "000001", "name": "华夏成长混合"}, {"code": "011370", "name": "华商均衡成长混合C"}]));
                             if (window.renderWatchlist) {
                                 window.renderWatchlist();
                             }
@@ -372,6 +372,19 @@ class MainActivity : AppCompatActivity() {
         val cFee = extractJbgk("托管费率")
         val benchmark = extractJbgk("业绩比较基准")
 
+        val limitMatch = Pattern.compile("交易状态：([\\s\\S]*?)</label>").matcher(jbgkHtml)
+        var limitBuy = "不限购"
+        if (limitMatch.find()) {
+            var raw = limitMatch.group(1) ?: ""
+            raw = raw.replace("<.*?>".toRegex(), "")
+            raw = raw.replace("&nbsp;", "")
+            raw = raw.replace("\\s+".toRegex(), " ").trim()
+            raw = raw.replace("(开放|暂停)赎回".toRegex(), "").trim()
+            if (raw.isNotEmpty()) {
+                limitBuy = raw.replace("\"", "\\\"")
+            }
+        }
+
         // Fetch holdings loop
         var years = listOf(java.util.Calendar.getInstance().get(java.util.Calendar.YEAR))
         val arryearMatch = Pattern.compile("arryear:\\[(.*?)\\]").matcher(jsText)
@@ -465,7 +478,8 @@ class MainActivity : AppCompatActivity() {
             "performanceEvaluation": $performanceEvaluation,
             "buyRedemption": $buyRedemption,
             "holdings": $holdingsJson,
-            "holdingsDate": "$holdingsDate"
+            "holdingsDate": "$holdingsDate",
+            "limitBuy": "$limitBuy"
         }""".replace("\n", " ").replace("\\s+".toRegex(), " ")
     }
 }
