@@ -31,9 +31,9 @@ function initScaleChart(categories, seriesData) {
     backgroundColor: 'transparent',
     tooltip: {
       trigger: 'axis',
-      backgroundColor: '#1e2633',
-      borderColor: '#262f3f',
-      textStyle: { color: '#ffffff', fontSize: 12 },
+      backgroundColor: '#ffffff',
+      borderColor: '#e2e8f0',
+      textStyle: { color: '#0f172a', fontSize: 12 },
       formatter: '{b}: {c} 亿元'
     },
     grid: {
@@ -101,9 +101,9 @@ function initHoldingsPieChart(holdingsData) {
     backgroundColor: 'transparent',
     tooltip: {
       trigger: 'item',
-      backgroundColor: '#1e2633',
-      borderColor: '#262f3f',
-      textStyle: { color: '#ffffff', fontSize: 12 },
+      backgroundColor: '#ffffff',
+      borderColor: '#e2e8f0',
+      textStyle: { color: '#0f172a', fontSize: 12 },
       formatter: '{b}: {c}%'
     },
     legend: {
@@ -117,7 +117,7 @@ function initHoldingsPieChart(holdingsData) {
         avoidLabelOverlap: true,
         itemStyle: {
           borderRadius: 8,
-          borderColor: '#161c26',
+          borderColor: '#f8fafc',
           borderWidth: 2
         },
         label: {
@@ -284,6 +284,7 @@ if (searchBtn) {
 const modelSelect = document.getElementById('val-model-select');
 if (modelSelect) {
   modelSelect.addEventListener('change', () => {
+    localStorage.setItem('preferred_valuation_model', modelSelect.value);
     if (currentHoldings && currentHoldings.length > 0 && currentPrices) {
       calculateEstimatedNAV(currentHoldings, currentPrices);
     }
@@ -664,15 +665,11 @@ function calculateEstimatedNAV(holdings, prices) {
 
   // Read valuation model selection
   const modelSelect = document.getElementById('val-model-select');
-  const selectedModel = modelSelect ? modelSelect.value : 'scale';
+  const selectedModel = modelSelect ? modelSelect.value : getPreferredModel();
 
   let finalEstimatedChange = estimatedChangeSum;
 
-  if (selectedModel === 'scale') {
-    if (top10WeightSum > 0) {
-      finalEstimatedChange = estimatedChangeSum * (stockPosition / top10WeightSum);
-    }
-  } else if (selectedModel === 'index') {
+  if (selectedModel === 'index') {
     let indexChange = 0;
     if (latestIndices && latestIndices.length > 0) {
       const csi300 = latestIndices.find(idx => idx.code === 'sz399300' || idx.code === 's_sz399300');
@@ -727,7 +724,6 @@ function calculateEstimatedNAV(holdings, prices) {
   
   // Format model description
   let modelStr = '仅重仓估值';
-  if (selectedModel === 'scale') modelStr = `按仓位放缩 (${stockPosition.toFixed(2)}% 股票仓位)`;
   if (selectedModel === 'index') {
     let indexChange = 0;
     if (latestIndices && latestIndices.length > 0) {
@@ -986,6 +982,12 @@ async function queryFund(code) {
     document.querySelectorAll('.tab-panels .tab-panel').forEach(panel => panel.classList.remove('active'));
     document.getElementById('panel-overview').classList.add('active');
 
+    // Preset active valuation model select value
+    const valSelect = document.getElementById('val-model-select');
+    if (valSelect) {
+      valSelect.value = getPreferredModel();
+    }
+
     // Update favorite button status
     const favorites = getFavorites();
     const isFav = favorites.some(item => item.code === fundData.code);
@@ -1128,7 +1130,7 @@ function renderWatchlist() {
 }
 
 // Reusable valuation calculation logic
-function calculateValuationForFund(fundData, prices, model = 'scale', indices = []) {
+function calculateValuationForFund(fundData, prices, model = 'top10', indices = []) {
   let estimatedChangeSum = 0;
   let top10WeightSum = 0;
   
@@ -1156,11 +1158,7 @@ function calculateValuationForFund(fundData, prices, model = 'scale', indices = 
   }
   
   let finalEstimatedChange = estimatedChangeSum;
-  if (model === 'scale') {
-    if (top10WeightSum > 0) {
-      finalEstimatedChange = estimatedChangeSum * (stockPosition / top10WeightSum);
-    }
-  } else if (model === 'index') {
+  if (model === 'index') {
     let indexChange = 0;
     if (indices && indices.length > 0) {
       const csi300 = indices.find(idx => idx.code === 'sz399300' || idx.code === 's_sz399300');
@@ -1195,7 +1193,7 @@ async function loadWatchlistItemValuation(code, valueEl) {
     if (!priceRes.ok) throw new Error('API error');
     const prices = await priceRes.json();
     
-    const change = calculateValuationForFund(fundData, prices, 'scale', latestIndices);
+    const change = calculateValuationForFund(fundData, prices, getPreferredModel(), latestIndices);
     
     valueEl.innerText = `${change > 0 ? '+' : ''}${change.toFixed(2)}%`;
     if (change > 0) {
@@ -1354,24 +1352,7 @@ function populateProcessModal() {
   let explanation = '';
   let formulaHtml = '';
   
-  if (selectedModel === 'scale') {
-    const scalingFactor = top10WeightSum > 0 ? (stockPosition / top10WeightSum) : 1;
-    finalEstimatedChange = estimatedChangeSum * scalingFactor;
-    
-    formulaHtml = `
-      <strong>仓位放缩估值模型：</strong><br>
-      公式：估值涨跌 = 前十大股贡献之和 &times; (总股票仓位 &divide; 前十大股权重之和)<br>
-      在此模型下，我们假设未公开的持仓股票涨跌与前十大重仓股的加权平均涨跌幅一致。
-    `;
-    
-    explanation = `
-      &bull; 前十大重仓股权重之和: <strong>${top10WeightSum.toFixed(2)}%</strong><br>
-      &bull; 基金总股票仓位: <strong>${stockPosition.toFixed(2)}%</strong><br>
-      &bull; 仓位放缩系数: ${stockPosition.toFixed(2)}% &divide; ${top10WeightSum.toFixed(2)}% = <strong>${scalingFactor.toFixed(4)}</strong><br>
-      &bull; 前十大股贡献之和: <strong>${(estimatedChangeSum * 100).toFixed(4)}%</strong><br>
-      &bull; 最终估值结果: ${(estimatedChangeSum * 100).toFixed(4)}% &times; ${scalingFactor.toFixed(4)} = <strong>${(finalEstimatedChange * 100).toFixed(2)}%</strong>
-    `;
-  } else if (selectedModel === 'index') {
+  if (selectedModel === 'index') {
     let indexChange = 0;
     let indexName = '沪深300指数';
     if (latestIndices && latestIndices.length > 0) {
@@ -1524,6 +1505,11 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
     }
   });
 });
+
+// Preferred model getter helper
+function getPreferredModel() {
+  return localStorage.getItem('preferred_valuation_model') || 'top10';
+}
 
 // App Startup Initialization
 renderWatchlist();

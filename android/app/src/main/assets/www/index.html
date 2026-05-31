@@ -4,10 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>天天基金估值助手 - Android App</title>
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <!-- System Fonts used natively -->
   <!-- ECharts CDN -->
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
   <!-- FontAwesome for icons -->
@@ -197,14 +194,13 @@
             <!-- Valuation Hero Card -->
             <div class="valuation-hero-card" id="valuation-card">
               <div class="valuation-meta">
-                <span class="val-label">
-                  估值模型:
-                  <select id="val-model-select" class="val-model-select">
-                    <option value="top10">仅重仓</option>
-                    <option value="scale" selected>仓位放缩</option>
-                    <option value="index">重仓+指数</option>
-                  </select>
-                </span>
+                  <span class="val-label">
+                    估值模型:
+                    <select id="val-model-select" class="val-model-select">
+                      <option value="top10" selected>仅重仓</option>
+                      <option value="index">重仓+指数</option>
+                    </select>
+                  </span>
                 <span class="val-date" id="valuation-date">2026-05-30 15:00:00</span>
               </div>
               <div class="valuation-pct-row">
@@ -515,7 +511,7 @@
         
         <div class="comparison-explanation">
           <i class="fas fa-circle-info"></i>
-          <p>注：估值差异通常由于最新持仓变动、剩余未公开仓位的市场跟踪偏差、以及现金管理损耗导致。本应用估算以披露的季报重仓股为基准进行仓位等比例放缩/指数追踪，与天天基金官方估算模型在整个基金的处理上可能存在微小差异。</p>
+          <p>注：估值差异通常由于最新持仓变动、剩余未公开仓位的市场跟踪偏差、以及现金管理损耗导致。本应用估算以披露的季报重仓股为基准进行指数追踪或仅重仓估值，与天天基金官方估算模型在整个基金的处理上可能存在微小差异。</p>
         </div>
       </div>
     </div>

@@ -16,12 +16,41 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
 
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            hideSystemUI()
+        }
+    }
+
+    private fun hideSystemUI() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            window.setDecorFitsSystemWindows(false)
+            window.insetsController?.let { controller ->
+                controller.hide(android.view.WindowInsets.Type.statusBars() or android.view.WindowInsets.Type.navigationBars())
+                controller.systemBarsBehavior = android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (
+                android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                or android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                or android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                or android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                or android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                or android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
+            )
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
         webView = WebView(this)
         webView.webChromeClient = android.webkit.WebChromeClient()
         setContentView(webView)
+        
+        hideSystemUI()
 
         // Configure WebView
         webView.settings.javaScriptEnabled = true
@@ -69,6 +98,23 @@ class MainActivity : AppCompatActivity() {
                     }
                     else -> super.shouldInterceptRequest(view, request)
                 }
+            }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                webView.evaluateJavascript(
+                    """
+                    (function() {
+                        var favs = localStorage.getItem('fund_favorites');
+                        if (!favs || favs === '[]') {
+                            localStorage.setItem('fund_favorites', JSON.stringify([{"code": "000001", "name": "华夏成长混合"}]));
+                            if (window.renderWatchlist) {
+                                window.renderWatchlist();
+                            }
+                        }
+                    })()
+                    """.trimIndent(), null
+                )
             }
         }
 
