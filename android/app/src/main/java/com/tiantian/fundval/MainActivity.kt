@@ -101,6 +101,15 @@ class MainActivity : AppCompatActivity() {
         webView.loadUrl("file:///android_asset/www/index.html")
     }
 
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        if (webView.canGoBack()) {
+            webView.goBack()
+        } else {
+            super.onBackPressed()
+        }
+    }
+
     private fun createJsonResponse(json: String): WebResourceResponse {
         val response = WebResourceResponse(
             "application/json",

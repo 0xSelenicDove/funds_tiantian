@@ -405,18 +405,26 @@ const returnToMain = () => {
   renderWatchlist();
 };
 
+const handleBackNavigation = () => {
+  if (window.history && window.history.length > 1) {
+    window.history.back();
+  } else {
+    returnToMain();
+  }
+};
+
 const dbackBtn = document.getElementById('dashboard-back-btn');
-if (dbackBtn) dbackBtn.addEventListener('click', returnToMain);
+if (dbackBtn) dbackBtn.addEventListener('click', handleBackNavigation);
 
 const sbackBtn = document.getElementById('search-back-btn');
-if (sbackBtn) sbackBtn.addEventListener('click', returnToMain);
+if (sbackBtn) sbackBtn.addEventListener('click', handleBackNavigation);
 
 // Refresh button on Dashboard
 const refreshBtn = document.getElementById('dashboard-refresh-btn');
 if (refreshBtn) {
   refreshBtn.addEventListener('click', () => {
     if (currentFundData) {
-      queryFund(currentFundData.code);
+      queryFund(currentFundData.code, false);
     }
   });
 }
@@ -834,7 +842,7 @@ function calculateEstimatedNAV(holdings, prices) {
 }
 
 // Primary async function to query fund code
-async function queryFund(code) {
+async function queryFund(code, pushToHistory = true) {
   // Show loading
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const loadingPage = document.getElementById('loading-page');
@@ -1092,6 +1100,13 @@ async function queryFund(code) {
     // Activate Dashboard Screen
     loadingPage.classList.remove('active');
     document.getElementById('dashboard-page').classList.add('active');
+
+    if (pushToHistory && window.history && window.history.pushState) {
+      const currentState = window.history.state;
+      if (!currentState || currentState.page !== 'dashboard' || currentState.code !== code) {
+        window.history.pushState({ page: 'dashboard', code: code }, '');
+      }
+    }
     
     // Reset Bottom navigation tabs active state to tab 1 (Overview)
     document.querySelectorAll('.bottom-nav .nav-item').forEach(btn => btn.classList.remove('active'));
@@ -1130,7 +1145,14 @@ function returnToSearch() {
 }
 
 // Show search page from main page buttons
-function showSearchPage() {
+function showSearchPage(pushToHistory = true) {
+  const shouldPush = (pushToHistory === true || typeof pushToHistory === 'object');
+  if (shouldPush && window.history && window.history.pushState) {
+    const currentState = window.history.state;
+    if (!currentState || currentState.page !== 'search') {
+      window.history.pushState({ page: 'search' }, '');
+    }
+  }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('search-page').classList.add('active');
   const keypadInput = document.getElementById('fund-code-input');
@@ -1975,3 +1997,23 @@ function getPreferredModel() {
 
 // App Startup Initialization
 renderWatchlist();
+
+// Initialize history state on load
+if (window.history && window.history.replaceState) {
+  window.history.replaceState({ page: 'main' }, '');
+}
+
+// Navigation state handling
+window.addEventListener('popstate', function(event) {
+  const state = event.state || { page: 'main' };
+  if (state.page === 'main') {
+    stopDashboardRealtime();
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('main-page').classList.add('active');
+    renderWatchlist();
+  } else if (state.page === 'search') {
+    showSearchPage(false);
+  } else if (state.page === 'dashboard' && state.code) {
+    queryFund(state.code, false);
+  }
+});
